@@ -113,14 +113,21 @@ class SpotifyApi {
             }
 
             result.add(
-                Track(item.getString("uri"),
-                item.getJSONArray("artists").getJSONObject(0).getString("name"),
-                item.getString("name"),
-                if (item.has("album")) item.getJSONObject("album").getString("name") else "",
-                item.getLong("duration_ms"),
-                if (item.has("album")) item.getJSONObject("album").getJSONArray("images").getJSONObject(0).getString("url") else "",
-                item.getString("uri"),
-                savedStatus.getBoolean(i))
+                Track(
+                    item.getString("uri"),
+                    item.getJSONArray("artists").getJSONObject(0).getString("name"),
+                    item.getString("name"),
+                    if (item.has("album")) item.getJSONObject("album").getString("name") else "",
+                    item.getLong("duration_ms"),
+                    if (item.has("album") &&
+                        item.getJSONObject("album").has("images") &&
+                        !item.getJSONObject("album").getJSONArray("images").isEmpty
+                    ) {
+                        item.getJSONObject("album").getJSONArray("images").getJSONObject(0).getString("url")
+                    } else "",
+                    item.getString("uri"),
+                    savedStatus.getBoolean(i)
+                )
             )
 
             if (savedStatus.getBoolean(i)) {
