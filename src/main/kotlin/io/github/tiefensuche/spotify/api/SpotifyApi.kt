@@ -20,6 +20,11 @@ class SpotifyApi {
         return parseTracks(items)
     }
 
+    fun getTrack(id: String): Track {
+        val item = request(String.format(TRACK_URL, URLEncoder.encode(id, "utf-8")))
+        return parseTrack(JSONObject(item.value))
+    }
+
     fun getReleaseRadar(refresh: Boolean): List<Track> {
         val response = JSONObject(request(RELEASE_RADAR_URL).value)
         val id = response.getJSONObject("playlists").getJSONArray("items").getJSONObject(0).getString("id")
@@ -130,16 +135,35 @@ class SpotifyApi {
         return result
     }
 
+    private fun parseTrack(item: JSONObject): Track {
+        return Track(
+            id = item.getString("uri"),
+            artist = item.getJSONArray("artists").getJSONObject(0).getString("name"),
+            title = item.getString("name"),
+            album = if (item.has("album")) item.getJSONObject("album").getString("name") else "",
+            duration = item.getLong("duration_ms"),
+            artwork = if (item.has("album") &&
+                item.getJSONObject("album").has("images") &&
+                !item.getJSONObject("album").getJSONArray("images").isEmpty
+            ) {
+                item.getJSONObject("album").getJSONArray("images").getJSONObject(0).getString("url")
+            } else "",
+            url = item.getString("uri"),
+            liked = false
+        )
+    }
+
     private fun parsePlaylists(items: JSONArray): List<Playlist> {
         val result = mutableListOf<Playlist>()
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
             result.add(
-                Playlist(item.getString("id"),
-                item.getString("name"),
-                if (item.isNull("images") || item.getJSONArray("images").length() == 0) ""
-                else item.getJSONArray("images").getJSONObject(0).getString("url")
-            )
+                Playlist(
+                    item.getString("id"),
+                    item.getString("name"),
+                    if (item.isNull("images") || item.getJSONArray("images").length() == 0) ""
+                    else item.getJSONArray("images").getJSONObject(0).getString("url")
+                )
             )
         }
         return result
@@ -150,13 +174,14 @@ class SpotifyApi {
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i).getJSONObject("album")
             result.add(
-                Album(item.getString("id"),
-                item.getJSONArray("artists").getJSONObject(0).getString("name"),
-                item.getString("name"),
-                item.getJSONArray("images").getJSONObject(0).getString("url"),
-                item.getString("uri"),
-                parseTracks(item.getJSONObject("tracks").getJSONArray("items"))
-            )
+                Album(
+                    item.getString("id"),
+                    item.getJSONArray("artists").getJSONObject(0).getString("name"),
+                    item.getString("name"),
+                    item.getJSONArray("images").getJSONObject(0).getString("url"),
+                    item.getString("uri"),
+                    parseTracks(item.getJSONObject("tracks").getJSONArray("items"))
+                )
             )
         }
         return result
@@ -167,12 +192,13 @@ class SpotifyApi {
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i).getJSONObject("show")
             result.add(
-                Show(item.getString("id"),
-                item.getString("name"),
-                item.getString("description"),
-                item.getJSONArray("images").getJSONObject(0).getString("url"),
-                item.getString("uri")
-            )
+                Show(
+                    item.getString("id"),
+                    item.getString("name"),
+                    item.getString("description"),
+                    item.getJSONArray("images").getJSONObject(0).getString("url"),
+                    item.getString("uri")
+                )
             )
         }
         return result
@@ -183,13 +209,14 @@ class SpotifyApi {
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
             result.add(
-                Episode(item.getString("id"),
-                item.getString("name"),
-                item.getString("description"),
-                item.getLong("duration_ms"),
-                item.getJSONArray("images").getJSONObject(0).getString("url"),
-                item.getString("uri")
-            )
+                Episode(
+                    item.getString("id"),
+                    item.getString("name"),
+                    item.getString("description"),
+                    item.getLong("duration_ms"),
+                    item.getJSONArray("images").getJSONObject(0).getString("url"),
+                    item.getString("uri")
+                )
             )
         }
         return result
@@ -200,10 +227,11 @@ class SpotifyApi {
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
             result.add(
-                Category(item.getString("id"),
-                item.getString("name"),
-                item.getJSONArray("icons").getJSONObject(0).getString("url"),
-            )
+                Category(
+                    item.getString("id"),
+                    item.getString("name"),
+                    item.getJSONArray("icons").getJSONObject(0).getString("url"),
+                )
             )
         }
         return result
@@ -224,8 +252,10 @@ class SpotifyApi {
     fun saveTrack(uri: String): Boolean {
         return try {
             val exists = savedTrackIds.contains(uri)
-            request("$USERS_SAVED_TRACKS_URL?ids=${uri.substringAfterLast(':')}",
-                if (exists) "DELETE" else "PUT")
+            request(
+                "$USERS_SAVED_TRACKS_URL?ids=${uri.substringAfterLast(':')}",
+                if (exists) "DELETE" else "PUT"
+            )
             if (exists) {
                 savedTrackIds.remove(uri)
             } else {
@@ -255,6 +285,7 @@ class SpotifyApi {
     companion object {
         private const val BASE_URL = "https://api.spotify.com/v1"
         private const val QUERY_URL = "$BASE_URL/search?q=%s&type=track"
+        private const val TRACK_URL = "$BASE_URL/tracks/%s"
         private const val USERS_SAVED_TRACKS_URL = "$BASE_URL/me/tracks"
         private const val USERS_FOLLOWING = "$BASE_URL/me/following?type=artist"
         private const val ARTIST_TRACKS = "$BASE_URL/artists/%s/top-tracks?market=US"
